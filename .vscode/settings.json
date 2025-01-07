@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "render.h": "c",
+        "windows.h": "c",
+        "render3d.h": "c",
+        "math.h": "c",
+        "stdio.h": "c",
+        "windowsx.h": "c"
+    }
+}
