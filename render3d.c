@@ -4,12 +4,16 @@
 #include <math.h>
 #include <stdio.h>
 
-float angle = 0;
+float angleZX = 0;
+float angleZY = 0;
 float focalLength = 1000.0;
 int screenCenterX = 400;
 int screenCenterY = 300;
 float max_produtoEixoZ;
 struct vertice3d* verticesArrayPointer;
+float camX = 0;
+float camY = 0;
+float camZ = 0;
 
 
 int distanceBetweenVertices(struct vertice3d v1, struct vertice3d v2) {
@@ -19,7 +23,7 @@ int distanceBetweenVertices(struct vertice3d v1, struct vertice3d v2) {
 struct vertice2d project(struct vertice3d v){
     struct vertice2d v2d;
 
-    float divisor = focalLength / (v.z - 10);
+    float divisor = focalLength / v.z;
 
     v2d.x = (v.x * divisor) + screenCenterX;
     v2d.y = (v.y * divisor) + screenCenterY;
@@ -27,16 +31,37 @@ struct vertice2d project(struct vertice3d v){
     return v2d;
 }
 
-void rotate(float angle, struct vertice3d* vertices, int tamanhoVertices) {
-    float cosA = cos(angle);
-    float sinA = sin(angle);
+void translate(float camera_x, float camera_y, float camera_z, struct vertice3d* vertices, int tamanhoVertices){
+    int i;
+    for(i = 0; i < tamanhoVertices; i++){
+        vertices[i].x = vertices[i].x - camera_x;
+        vertices[i].y = vertices[i].y - camera_y;
+        vertices[i].z = vertices[i].z - camera_z;
+    }
+}
+
+void rotate(float angleZX, float angleZY, struct vertice3d* vertices, int tamanhoVertices) {
+    float cosZX = cos(angleZX);
+    float sinZX = sin(angleZX);
+    float cosZY = cos(angleZY);
+    float sinZY = sin(angleZY);
 
     for (int i = 0; i < tamanhoVertices; i++) {
         float x = vertices[i].x;
+        float y = vertices[i].y;
         float z = vertices[i].z;
 
-        vertices[i].x = cosA * x - sinA * z;
-        vertices[i].z = sinA * x + cosA * z;
+        // Rotação em torno de ZX
+        float x_rotated = cosZX * x - sinZX * z;
+        float z_temp = sinZX * x + cosZX * z;
+
+        // Rotação em torno de ZY
+        float y_rotated = cosZY * y - sinZY * z_temp;
+        float z_rotated = sinZY * y + cosZY * z_temp;
+
+        vertices[i].x = x_rotated;
+        vertices[i].y = y_rotated;
+        vertices[i].z = z_rotated;
     }
 }
 
@@ -71,14 +96,13 @@ int compare(const void *x_void, const void *y_void){
     float z1 = (verticesArrayPointer[face1.v1].z + verticesArrayPointer[face1.v2].z + verticesArrayPointer[face1.v3].z) / 3.0;
     float z2 = (verticesArrayPointer[face2.v1].z + verticesArrayPointer[face2.v2].z + verticesArrayPointer[face2.v3].z) / 3.0;
 
-    if (z1 > z2) return 1;
-    if (z1 < z2) return -1;
+    if (z1 < z2) return 1;
+    if (z1 > z2) return -1;
     return 0;
 }
 
 
-void readObj(char* fileName, HDC hdc) {
-    angle += 0.05;  // Incrementa o ângulo para a animação
+void readDrawObj(char* fileName, HDC hdc) {
 
     FILE* file = fopen(fileName, "r");
     if (file == NULL) {
@@ -142,7 +166,8 @@ void readObj(char* fileName, HDC hdc) {
     fclose(file);
 
     // Aplica a rotação aos vértices
-    rotate(angle, vertices, tamanhoVertices);
+    translate(camX, camY, camZ, vertices, tamanhoVertices);
+    rotate(angleZX, angleZY, vertices, tamanhoVertices);
     qsort(faces, tamanhoFaces, sizeof(struct face3d), compare);
     
 
@@ -153,20 +178,40 @@ void readObj(char* fileName, HDC hdc) {
         struct vertice3d v3d1 = vertices[faces[i].v1];
         struct vertice3d v3d2 = vertices[faces[i].v2];
         struct vertice3d v3d3 = vertices[faces[i].v3];
-        float distanciaP3P1 = sqrt(pow(v3d3.x - v3d1.x, 2) + pow(v3d3.y - v3d1.y, 2) + pow(v3d3.z - v3d1.z, 2));
-        float distanciaP1P2 = sqrt(pow(v3d1.x - v3d2.x, 2) + pow(v3d1.y - v3d2.y, 2) + pow(v3d1.z - v3d2.z, 2));
 
-        float produtoEixoZ = ((((v3d3.x - v3d1.x)/distanciaP3P1) * ((v3d2.y - v3d1.y))/distanciaP1P2) - ((((v3d2.x - v3d1.x)/distanciaP3P1)) * ((v3d3.y - v3d1.y)/distanciaP1P2)));
+        int validateV1 = 1;
+        int validateV2 = 1;
+        int validateV3 = 1;
 
-        struct vertice2d v2d1 = project(v3d1);
-        struct vertice2d v2d2 = project(v3d2);
-        struct vertice2d v2d3 = project(v3d3);
+        if((v3d1.x)/v3d1.z < -2.0/5.0 || (v3d1.x)/v3d1.z > 2.0/5.0 || v3d1.z < 2){
+            validateV1 = 0;
+        }
 
+        if((v3d2.x)/v3d2.z < -2.0/5.0 || (v3d2.x)/v3d2.z > 2.0/5.0 || v3d2.z < 2){
+            validateV2 = 0;
+        }
 
-        if(produtoEixoZ < 0) {
-            float temporaryRGB = (255 - (255 * produtoEixoZ));
-            unsigned char rgb = temporaryRGB;
-            drawTriangle(hdc, v2d1, v2d2, v2d3, rgb, rgb, rgb);
+        if((v3d3.x)/v3d3.z < -2.0/5.0 || (v3d3.x)/v3d3.z > 2.0/5.0 || v3d3.z < 2){
+            validateV3 = 0;
+        }
+        
+        if(validateV1 || validateV2 || validateV3){
+            float distanciaP3P1 = sqrt(pow(v3d3.x - v3d1.x, 2) + pow(v3d3.y - v3d1.y, 2) + pow(v3d3.z - v3d1.z, 2));
+            float distanciaP1P2 = sqrt(pow(v3d1.x - v3d2.x, 2) + pow(v3d1.y - v3d2.y, 2) + pow(v3d1.z - v3d2.z, 2));
+
+            float produtoEixoZ = ((((v3d3.x - v3d1.x)/distanciaP3P1) * ((v3d2.y - v3d1.y))/distanciaP1P2) - ((((v3d2.x - v3d1.x)/distanciaP3P1)) * ((v3d3.y - v3d1.y)/distanciaP1P2)));
+
+            if(produtoEixoZ < 0){
+
+                struct vertice2d v2d1 = project(v3d1);
+                struct vertice2d v2d2 = project(v3d2);
+                struct vertice2d v2d3 = project(v3d3);
+
+                float temporaryRGB = (255 - (255 * produtoEixoZ));
+                unsigned char rgb = temporaryRGB;
+                drawTriangle(hdc, v2d1, v2d2, v2d3, rgb, rgb, rgb);
+
+            }
         }
     }
 

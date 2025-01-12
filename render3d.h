@@ -9,6 +9,16 @@
 // Definições
 #define M_PI 3.14159265358979323846
 
+extern float angleZX;
+extern float angleZY;
+extern float focalLength;
+extern int screenCenterX;
+extern int screenCenterY;
+extern float max_produtoEixoZ;
+extern struct vertice3d* verticesArrayPointer;
+extern float camX;
+extern float camY;
+extern float camZ;
 
 struct vertice2d {
     float x, y;
@@ -20,6 +30,10 @@ struct vertice3d {
 
 struct face3d {
     int v1, v2, v3;
+};
+
+struct face2d {
+    struct vertice2d v1, v2, v3;
 };
 
 struct triangle2d {
