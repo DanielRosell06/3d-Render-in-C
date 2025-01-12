@@ -108,19 +108,35 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         }
 
         case WM_PAINT: {
-            // Prepare the device context for drawing
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
 
-            // Limpa a tela (preenchendo com fundo branco)
+            // Obtenha o retângulo da janela
             RECT rect;
             GetClientRect(hwnd, &rect);
-            FillRect(hdc, &rect, (HBRUSH)(COLOR_WINDOW+1));
+            int width = rect.right - rect.left;
+            int height = rect.bottom - rect.top;
 
-            // Chama a função para desenhar o objeto 3D (o cone)
-            readDrawObj("cube.obj", hdc);
+            // Crie um DC de memória
+            HDC memDC = CreateCompatibleDC(hdc);
+            HBITMAP memBitmap = CreateCompatibleBitmap(hdc, width, height);
+            SelectObject(memDC, memBitmap);
 
-            // Finaliza a pintura
+            // Limpe o buffer de memória
+            HBRUSH hBrush = CreateSolidBrush(RGB(255, 255, 255));
+            FillRect(memDC, &rect, hBrush);
+            DeleteObject(hBrush);
+
+            // Desenhe no DC de memória
+            readDrawObj("cube.obj", memDC);
+
+            // Copie o buffer de memória para o HDC da janela
+            BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
+
+            // Libere os recursos do DC de memória
+            DeleteObject(memBitmap);
+            DeleteDC(memDC);
+
             EndPaint(hwnd, &ps);
             return 0;
         }
@@ -156,7 +172,7 @@ int main() {
     HWND hwnd = CreateWindowEx(
         0,
         CLASS_NAME,
-        "Minha Janela Simples",
+        "3d Render",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
         800, 600,
