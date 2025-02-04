@@ -6,7 +6,7 @@ This is a simple 3D render in C whit the `whindows.h` library that can read a .o
 
 ![Loading...](https://raw.githubusercontent.com/DanielRosell06/3d-Render-in-C/main/assets/Print-02.png)
 
-Use `gcc main.c render3d.c -o test -lgdi32` to copile this code
+Use `gcc main.c render3d.c -o test -lgdi32` to compile this code
 
 ## Author
 
